@@ -345,17 +345,17 @@ Git version control
 
 Potential next steps:
 
-FX rate normalization
-incremental ML feature generation
-scheduled model retraining
-model drift monitoring
-cost monitoring
-CI/CD with GitHub Actions
-automated Terraform validation
-automated Dataform compilation
-alerting for high-risk fraud predictions
-model registry / promotion workflow
-multi-environment dev / staging / prod architecture
+1. FX rate normalization
+2. incremental ML feature generation
+3. scheduled model retraining
+4. model drift monitoring
+5. cost monitoring
+6. CI/CD with GitHub Actions
+7. automated Terraform validation
+8. automated Dataform compilation
+9. alerting for high-risk fraud predictions
+10. model registry / promotion workflow
+11. multi-environment dev / staging / prod architecture
 
 ## Disclaimer
 
