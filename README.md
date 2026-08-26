@@ -183,18 +183,18 @@ The Boosted Tree model was selected.
 
 ## Final Test Performance
 
-Decision threshold: 0.80
+Decision threshold: `0.80`
 
-Metric	            Result
-
-Precision	        91.09%
-Recall	            92.91%
-F1 Score	        91.99%
-Accuracy	        99.10%
-True Positives	    5,663
-False Positives	    554
-False Negatives	    432
-True Negatives	    102,574
+| Metric | Result |
+|---|---:|
+| Precision | 91.09% |
+| Recall | 92.91% |
+| F1 Score | 91.99% |
+| Accuracy | 99.10% |
+| True Positives | 5,663 |
+| False Positives | 554 |
+| False Negatives | 432 |
+| True Negatives | 102,574 |
 
 The final threshold was selected on the validation dataset before evaluating the untouched test dataset.
 
@@ -208,9 +208,9 @@ risk level
 
 Risk levels:
 
-LOW     < 0.50
-MEDIUM  0.50 - 0.79
-HIGH    >= 0.80
+|LOW    | < 0.50|
+|MEDIUM  |0.50 - 0.79|
+|HIGH    >= 0.80|
 
 The resulting table is:
 
