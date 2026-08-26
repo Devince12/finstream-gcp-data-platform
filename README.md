@@ -53,8 +53,9 @@ Cloud Composer / Airflow
 Terraform
         |
         +--> Infrastructure provisioning
+```
 
-GCP Services
+## GCP Services
 Google Cloud Pub/Sub
 Google Cloud Dataflow
 Google BigQuery
@@ -65,7 +66,9 @@ BigQuery ML
 Google Cloud Storage
 IAM
 Looker Studio
-Data Pipeline
+
+## Data Pipeline
+
 1. Transaction Producer
 
 Synthetic banking transactions are generated and published to Pub/Sub.
@@ -79,6 +82,7 @@ legitimate and fraudulent transaction overlap
 probabilistic fraud behavior
 fraud bursts / transaction velocity scenarios
 historical backfill and real-time streaming modes
+
 2. Streaming Ingestion
 
 Dataflow consumes Pub/Sub messages and writes validated transactions into BigQuery Bronze.
@@ -103,7 +107,8 @@ Data quality checks include assertions for:
 unique transaction IDs
 required fields
 business rules
-Analytics Layer
+
+## Analytics Layer
 
 Key analytical models include:
 
@@ -115,13 +120,14 @@ agg_client_activity
 vw_executive_kpis
 vw_customer_kpis
 vw_risk_kpis
-Multi-Currency Handling
+
+## Multi-Currency Handling
 
 Transactions currently support:
 
-EUR
-USD
-GBP
+    EUR
+    USD
+    GBP
 
 Financial aggregation is currently implemented without FX conversion.
 
@@ -129,11 +135,11 @@ Currency is therefore preserved as an analytical dimension to prevent invalid cr
 
 A future version can introduce dated FX rates and normalized amounts.
 
-Fraud Detection
+## Fraud Detection
 
 Fraud detection is implemented using BigQuery ML.
 
-Feature Engineering
+## Feature Engineering
 
 Features are constructed point-in-time to avoid look-ahead leakage.
 
@@ -156,7 +162,7 @@ time since previous transaction
 
 Monetary behavioral features are computed independently per currency.
 
-Dataset Split
+## Dataset Split
 
 The dataset is split chronologically:
 
@@ -166,32 +172,33 @@ TEST: August 25–26, 2026
 
 This avoids random future/past mixing and better simulates a production fraud detection scenario.
 
-Models
+## Models
 
 Two models were evaluated:
 
-Logistic Regression — baseline
-Boosted Tree Classifier — challenger
+1. Logistic Regression — baseline
+2. Boosted Tree Classifier — challenger
 
 The Boosted Tree model was selected.
 
-Final Test Performance
+## Final Test Performance
 
 Decision threshold: 0.80
 
-Metric	Result
-Precision	91.09%
-Recall	92.91%
-F1 Score	91.99%
-Accuracy	99.10%
-True Positives	5,663
-False Positives	554
-False Negatives	432
-True Negatives	102,574
+Metric	            Result
+
+Precision	        91.09%
+Recall	            92.91%
+F1 Score	        91.99%
+Accuracy	        99.10%
+True Positives	    5,663
+False Positives	    554
+False Negatives	    432
+True Negatives	    102,574
 
 The final threshold was selected on the validation dataset before evaluating the untouched test dataset.
 
-Fraud Scoring
+## Fraud Scoring
 
 The model produces:
 
@@ -208,7 +215,8 @@ HIGH    >= 0.80
 The resulting table is:
 
 banking_ml.fraud_predictions
-Orchestration
+
+## Orchestration
 
 Cloud Composer / Apache Airflow executes the daily pipeline.
 
@@ -241,7 +249,7 @@ end
 
 Dataform handles transformations, assertions, ML feature generation, and fraud scoring.
 
-Business Intelligence
+## Business Intelligence
 
 Looker Studio provides business-facing dashboards.
 
@@ -262,7 +270,8 @@ fraud amount
 transaction trends
 currency filters
 date filters
-Infrastructure as Code
+
+## Infrastructure as Code
 
 Terraform provisions and configures the GCP infrastructure.
 
@@ -274,7 +283,9 @@ Cloud Storage buckets
 IAM service accounts and permissions
 Dataform access
 Cloud Composer environment
-Repository Structure
+
+## Repository Structure
+```text
 finstream-gcp/
 ├── composer/
 │   └── dags/
@@ -298,7 +309,9 @@ finstream-gcp/
 └── terraform/
     └── environments/
         └── dev/
-Security
+ ```
+
+## Security
 
 Sensitive local files are excluded from Git:
 
@@ -310,7 +323,7 @@ credentials and secret files
 
 Service accounts follow scoped IAM permissions for Composer and Dataform.
 
-Current Status
+## Current Status
 
 Implemented:
 
@@ -327,7 +340,8 @@ production-style scoring
 Looker Studio dashboards
 Terraform infrastructure
 Git version control
-Future Improvements
+
+## Future Improvements
 
 Potential next steps:
 
@@ -342,6 +356,7 @@ automated Dataform compilation
 alerting for high-risk fraud predictions
 model registry / promotion workflow
 multi-environment dev / staging / prod architecture
-Disclaimer
+
+## Disclaimer
 
 This project uses synthetic banking transaction data for engineering and machine learning demonstration purposes.        
