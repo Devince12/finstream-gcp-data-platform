@@ -69,7 +69,7 @@ Looker Studio
 
 ## Data Pipeline
 
-1. Transaction Producer
+### 1. Transaction Producer
 
 Synthetic banking transactions are generated and published to Pub/Sub.
 
@@ -83,13 +83,13 @@ probabilistic fraud behavior
 fraud bursts / transaction velocity scenarios
 historical backfill and real-time streaming modes
 
-2. Streaming Ingestion
+### 2. Streaming Ingestion
 
 Dataflow consumes Pub/Sub messages and writes validated transactions into BigQuery Bronze.
 
 Invalid records can be routed to a dead-letter flow for further analysis.
 
-3. Data Transformation
+### 3. Data Transformation
 
 Dataform transforms Bronze data into analytics-ready datasets.
 
@@ -166,9 +166,9 @@ Monetary behavioral features are computed independently per currency.
 
 The dataset is split chronologically:
 
-TRAIN: August 15–22, 2026
-VALIDATION: August 23–24, 2026
-TEST: August 25–26, 2026
+### TRAIN: August 15–22, 2026
+### VALIDATION: August 23–24, 2026
+### TEST: August 25–26, 2026
 
 This avoids random future/past mixing and better simulates a production fraud detection scenario.
 
@@ -214,7 +214,7 @@ Risk levels:
 
 The resulting table is:
 
-banking_ml.fraud_predictions
+### banking_ml.fraud_predictions
 
 ## Orchestration
 
