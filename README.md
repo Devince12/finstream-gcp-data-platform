@@ -207,9 +207,9 @@ predicted fraud flag
 risk level
 
 Risk levels:
-
-|LOW    | < 0.50|
-|MEDIUM  |0.50 - 0.79|
+|------:|
+|LOW   < 0.50|
+|MEDIUM 0.50 - 0.79|
 |HIGH    >= 0.80|
 
 The resulting table is:
