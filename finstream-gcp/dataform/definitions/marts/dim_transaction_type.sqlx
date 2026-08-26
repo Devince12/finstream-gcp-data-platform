@@ -1,0 +1,25 @@
+﻿config {
+  type: "table",
+  schema: "banking_marts",
+  name: "dim_transaction_type",
+  description: "Transaction type dimension for FinStream analytics",
+  tags: ["gold", "dimension", "transaction_type"],
+
+  assertions: {
+    uniqueKey: ["tx_type"],
+    nonNull: ["tx_type"]
+  }
+}
+
+SELECT DISTINCT
+  tx_type,
+
+  CASE tx_type
+    WHEN "CARD_PAYMENT" THEN "Card payment"
+    WHEN "SEPA_TRANSFER" THEN "SEPA transfer"
+    WHEN "ATM_WITHDRAWAL" THEN "ATM withdrawal"
+    WHEN "MOBILE_MONEY" THEN "Mobile money"
+    ELSE "Unknown"
+  END AS tx_type_label
+
+FROM ${ref("fct_transactions")}

@@ -1,0 +1,39 @@
+﻿config {
+  type: "table",
+  schema: "banking_staging",
+  name: "stg_transactions",
+  description: "Cleaned and standardized FinStream transactions from the Bronze layer",
+  tags: ["staging", "silver", "transactions"],
+
+  assertions: {
+    uniqueKey: ["transaction_id"],
+    nonNull: [
+      "transaction_id",
+      "client_id",
+      "account_id",
+      "amount",
+      "currency",
+      "tx_type",
+      "timestamp"
+    ],
+    rowConditions: [
+      "amount > 0",
+      "currency IN ('EUR', 'USD', 'GBP')",
+      "tx_type IN ('CARD_PAYMENT', 'SEPA_TRANSFER', 'ATM_WITHDRAWAL', 'MOBILE_MONEY')"
+    ]
+  }
+}
+
+SELECT
+  transaction_id,
+  client_id,
+  account_id,
+  amount,
+  UPPER(TRIM(currency)) AS currency,
+  UPPER(TRIM(tx_type)) AS tx_type,
+  UPPER(TRIM(merchant_category)) AS merchant_category,
+  timestamp,
+  device_id,
+  is_flagged_fraud
+FROM `fintech-data-platform-dev.banking_analytics.transactions_bronze`
+WHERE transaction_id IS NOT NULL

@@ -1,0 +1,56 @@
+﻿config {
+  type: "view",
+  schema: "banking_marts",
+  name: "vw_executive_kpis",
+  description: "Executive and Finance KPI presentation view by date and currency",
+  tags: ["gold", "presentation", "executive", "finance"],
+
+  assertions: {
+    uniqueKey: [
+      "transaction_date",
+      "currency"
+    ],
+
+    nonNull: [
+      "transaction_date",
+      "currency",
+      "transaction_count",
+      "total_amount",
+      "active_clients",
+      "active_accounts"
+    ],
+
+    rowConditions: [
+      "transaction_count > 0",
+      "total_amount > 0",
+      "active_clients > 0",
+      "active_accounts > 0"
+    ]
+  }
+}
+
+SELECT
+  transaction_date,
+  currency,
+
+  COUNT(*) AS transaction_count,
+
+  SUM(amount) AS total_amount,
+
+  AVG(amount) AS average_transaction_amount,
+
+  COUNT(DISTINCT client_id) AS active_clients,
+
+  COUNT(DISTINCT account_id) AS active_accounts,
+
+  COUNT(DISTINCT tx_type) AS active_transaction_types,
+
+  MIN(transaction_timestamp) AS first_transaction_timestamp,
+
+  MAX(transaction_timestamp) AS last_transaction_timestamp
+
+FROM ${ref("fct_transactions")}
+
+GROUP BY
+  transaction_date,
+  currency

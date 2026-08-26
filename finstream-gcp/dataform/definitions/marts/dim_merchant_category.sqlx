@@ -1,0 +1,17 @@
+﻿config {
+  type: "table",
+  schema: "banking_marts",
+  name: "dim_merchant_category",
+  description: "Merchant category dimension for FinStream analytics",
+  tags: ["gold", "dimension", "merchant"],
+
+  assertions: {
+    uniqueKey: ["merchant_category"],
+    nonNull: ["merchant_category"]
+  }
+}
+
+SELECT DISTINCT
+  merchant_category
+FROM ${ref("fct_transactions")}
+WHERE merchant_category IS NOT NULL

@@ -1,0 +1,34 @@
+﻿config {
+  type: "table",
+  schema: "banking_marts",
+  name: "agg_daily_transactions",
+  description: "Daily transaction KPIs by date, currency and transaction type",
+  tags: ["gold", "kpi", "daily"],
+
+  assertions: {
+    uniqueKey: [
+    "transaction_date",
+    "currency",
+    "tx_type"
+    ]
+  }
+}
+
+SELECT
+  transaction_date,
+  currency,
+  tx_type,
+
+  COUNT(*) AS transaction_count,
+  SUM(amount) AS total_amount,
+  AVG(amount) AS average_amount,
+
+  COUNT(DISTINCT client_id) AS active_clients,
+  COUNT(DISTINCT account_id) AS active_accounts
+
+FROM ${ref("fct_transactions")}
+
+GROUP BY
+  transaction_date,
+  currency,
+  tx_type

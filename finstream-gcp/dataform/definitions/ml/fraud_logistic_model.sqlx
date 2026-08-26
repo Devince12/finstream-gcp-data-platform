@@ -1,0 +1,77 @@
+﻿config {
+  type: "operations",
+  tags: ["ml", "fraud", "model"]
+}
+
+CREATE OR REPLACE MODEL
+  `${dataform.projectConfig.defaultDatabase}.banking_ml.fraud_logistic_model`
+
+OPTIONS (
+  model_type = "LOGISTIC_REG",
+  input_label_cols = ["is_flagged_fraud"],
+  auto_class_weights = TRUE,
+  max_iterations = 30,
+  learn_rate_strategy = "LINE_SEARCH",
+  enable_global_explain = TRUE
+)
+
+AS
+
+SELECT
+
+  -- =========================================================
+  -- Label
+  -- =========================================================
+
+  is_flagged_fraud,
+
+  -- =========================================================
+  -- Current transaction
+  -- =========================================================
+
+  amount,
+  currency,
+  tx_type,
+  merchant_category,
+  transaction_hour,
+
+  -- =========================================================
+  -- Historical customer behavior
+  -- =========================================================
+
+  prior_transaction_count,
+
+  seconds_since_previous_transaction,
+
+  prior_currency_transaction_count,
+
+  prior_avg_amount_same_currency,
+  prior_stddev_amount_same_currency,
+
+  amount_vs_prior_avg_same_currency,
+  amount_zscore_same_currency,
+
+  -- =========================================================
+  -- Velocity
+  -- =========================================================
+
+  transactions_last_1h,
+  transactions_last_24h,
+
+  amount_last_1h_same_currency,
+  amount_last_24h_same_currency,
+
+  -- =========================================================
+  -- Device / behavioral signals
+  -- =========================================================
+
+  prior_distinct_devices,
+
+  is_new_client,
+  is_new_currency_for_client,
+  is_new_device,
+  has_sufficient_amount_history
+
+FROM ${ref("ml_dataset_split")}
+
+WHERE dataset_split = "TRAIN"

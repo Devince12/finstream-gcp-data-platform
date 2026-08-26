@@ -1,0 +1,43 @@
+﻿config {
+  type: "table",
+  schema: "banking_marts",
+  name: "agg_fraud_daily",
+  description: "Daily fraud KPIs by date, currency and transaction type",
+  tags: ["gold", "fraud", "risk", "kpi"],
+
+  assertions: {
+    uniqueKey: [
+    "transaction_date",
+    "currency",
+    "tx_type"
+    ]
+  }
+}
+
+SELECT
+  transaction_date,
+  currency,
+  tx_type,
+
+  COUNT(*) AS transaction_count,
+  COUNTIF(is_flagged_fraud) AS fraud_transaction_count,
+
+  SUM(amount) AS total_amount,
+  SUM(IF(is_flagged_fraud, amount, 0)) AS fraud_amount,
+
+  SAFE_DIVIDE(
+    COUNTIF(is_flagged_fraud),
+    COUNT(*)
+  ) * 100 AS fraud_transaction_rate_pct,
+
+  SAFE_DIVIDE(
+    SUM(IF(is_flagged_fraud, amount, 0)),
+    SUM(amount)
+  ) * 100 AS fraud_amount_rate_pct
+
+FROM ${ref("fct_transactions")}
+
+GROUP BY
+  transaction_date,
+  currency,
+  tx_type

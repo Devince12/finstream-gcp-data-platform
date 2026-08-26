@@ -1,0 +1,22 @@
+﻿config {
+  type: "view",
+  schema: "banking_ml",
+  name: "ml_dataset_split",
+  description: "Temporal train, validation and test split for fraud detection",
+  tags: ["ml", "fraud", "dataset"]
+}
+
+SELECT
+  *,
+
+  CASE
+    WHEN transaction_timestamp < TIMESTAMP("2026-08-23 00:00:00+00")
+      THEN "TRAIN"
+
+    WHEN transaction_timestamp < TIMESTAMP("2026-08-25 00:00:00+00")
+      THEN "VALIDATION"
+
+    ELSE "TEST"
+  END AS dataset_split
+
+FROM ${ref("ml_features_transactions")}

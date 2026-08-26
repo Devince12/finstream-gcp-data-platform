@@ -1,0 +1,63 @@
+﻿config {
+  type: "view",
+  schema: "banking_marts",
+  name: "vw_customer_kpis",
+  description: "Customer KPI presentation view by client and currency",
+  tags: ["gold", "presentation", "customer"],
+
+  assertions: {
+    uniqueKey: [
+      "client_id",
+      "currency"
+    ],
+
+    nonNull: [
+      "client_id",
+      "currency",
+      "transaction_count",
+      "total_amount"
+    ],
+
+    rowConditions: [
+      "transaction_count > 0",
+      "total_amount > 0",
+      "average_amount > 0",
+      "distinct_accounts > 0",
+      "fraud_transaction_count >= 0",
+      "fraud_transaction_count <= transaction_count",
+      "fraud_transaction_rate_pct BETWEEN 0 AND 100",
+      "fraud_amount_rate_pct BETWEEN 0 AND 100"
+    ]
+  }
+}
+
+SELECT
+  client_id,
+  currency,
+
+  transaction_count,
+  total_amount,
+  average_amount,
+
+  minimum_amount,
+  maximum_amount,
+
+  distinct_accounts,
+  distinct_devices,
+
+  fraud_transaction_count,
+  fraud_amount,
+
+  fraud_transaction_rate_pct,
+  fraud_amount_rate_pct,
+
+  first_transaction_timestamp,
+  last_transaction_timestamp,
+
+  CASE
+    WHEN fraud_transaction_rate_pct >= 20 THEN "HIGH"
+    WHEN fraud_transaction_rate_pct >= 10 THEN "MEDIUM"
+    ELSE "LOW"
+  END AS fraud_risk_level
+
+FROM ${ref("agg_client_activity")}

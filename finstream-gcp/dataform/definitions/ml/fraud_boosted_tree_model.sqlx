@@ -1,0 +1,53 @@
+﻿config {
+  type: "operations",
+  tags: ["ml", "fraud", "model", "boosted-tree"]
+}
+
+CREATE OR REPLACE MODEL
+  `${dataform.projectConfig.defaultDatabase}.banking_ml.fraud_boosted_tree_model`
+
+OPTIONS (
+  model_type = "BOOSTED_TREE_CLASSIFIER",
+  input_label_cols = ["is_flagged_fraud"],
+  auto_class_weights = TRUE,
+  max_iterations = 30,
+  enable_global_explain = TRUE
+)
+
+AS
+
+SELECT
+  is_flagged_fraud,
+
+  amount,
+  currency,
+  tx_type,
+  merchant_category,
+  transaction_hour,
+
+  prior_transaction_count,
+  seconds_since_previous_transaction,
+
+  prior_currency_transaction_count,
+  prior_avg_amount_same_currency,
+  prior_stddev_amount_same_currency,
+
+  amount_vs_prior_avg_same_currency,
+  amount_zscore_same_currency,
+
+  transactions_last_1h,
+  transactions_last_24h,
+
+  amount_last_1h_same_currency,
+  amount_last_24h_same_currency,
+
+  prior_distinct_devices,
+
+  is_new_client,
+  is_new_currency_for_client,
+  is_new_device,
+  has_sufficient_amount_history
+
+FROM ${ref("ml_dataset_split")}
+
+WHERE dataset_split = "TRAIN"

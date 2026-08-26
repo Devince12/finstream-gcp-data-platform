@@ -1,0 +1,8 @@
+{
+  "transaction_id": "TEST-INVALID-003",
+  "client_id": "CLI-TEST",
+  "account_id": "ACC-TEST",
+  "currency": "EUR",
+  "tx_type": "CARD_PAYMENT",
+  "timestamp": "2026-08-21T18:30:00+00:00"
+}

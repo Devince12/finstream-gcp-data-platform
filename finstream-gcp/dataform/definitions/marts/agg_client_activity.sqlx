@@ -1,0 +1,71 @@
+﻿config {
+  type: "table",
+  schema: "banking_marts",
+  name: "agg_client_activity",
+  description: "Client activity and fraud KPIs by client and currency",
+  tags: ["gold", "kpi", "customer", "risk"],
+
+  assertions: {
+    uniqueKey: ["client_id", "currency"],
+
+    nonNull: [
+      "client_id",
+      "currency",
+      "transaction_count",
+      "total_amount"
+    ],
+
+    rowConditions: [
+      "transaction_count > 0",
+      "total_amount > 0",
+      "fraud_transaction_count >= 0",
+      "fraud_transaction_count <= transaction_count",
+      "fraud_transaction_rate_pct BETWEEN 0 AND 100",
+      "fraud_amount_rate_pct BETWEEN 0 AND 100"
+    ]
+  }
+}  
+
+SELECT
+  client_id,
+  currency,
+
+  COUNT(*) AS transaction_count,
+
+  SUM(amount) AS total_amount,
+
+  AVG(amount) AS average_amount,
+
+  MIN(amount) AS minimum_amount,
+
+  MAX(amount) AS maximum_amount,
+
+  COUNT(DISTINCT account_id) AS distinct_accounts,
+
+  COUNT(DISTINCT device_id) AS distinct_devices,
+
+  COUNTIF(is_flagged_fraud) AS fraud_transaction_count,
+
+  SUM(
+    IF(is_flagged_fraud, amount, 0)
+  ) AS fraud_amount,
+
+  SAFE_DIVIDE(
+    COUNTIF(is_flagged_fraud),
+    COUNT(*)
+  ) * 100 AS fraud_transaction_rate_pct,
+
+  SAFE_DIVIDE(
+    SUM(IF(is_flagged_fraud, amount, 0)),
+    SUM(amount)
+  ) * 100 AS fraud_amount_rate_pct,
+
+  MIN(transaction_timestamp) AS first_transaction_timestamp,
+
+  MAX(transaction_timestamp) AS last_transaction_timestamp
+
+FROM ${ref("fct_transactions")}
+
+GROUP BY
+  client_id,
+  currency

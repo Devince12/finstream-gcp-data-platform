@@ -1,0 +1,120 @@
+﻿config {
+  type: "table",
+  schema: "banking_ml",
+  name: "fraud_predictions",
+  description: "Fraud scoring output generated from the FinStream boosted tree model",
+  tags: ["ml", "fraud", "scoring"],
+
+  assertions: {
+    uniqueKey: ["transaction_id"],
+
+    nonNull: [
+      "transaction_id",
+      "fraud_probability",
+      "predicted_fraud",
+      "risk_level",
+      "scored_at"
+    ]
+  }
+}
+
+
+WITH predictions AS (
+
+  SELECT
+    transaction_id,
+    client_id,
+    account_id,
+
+    amount,
+    currency,
+    tx_type,
+    merchant_category,
+
+    transaction_timestamp,
+    device_id,
+
+    (
+      SELECT prob
+      FROM UNNEST(predicted_is_flagged_fraud_probs)
+      WHERE label = TRUE
+    ) AS fraud_probability
+
+  FROM ML.PREDICT(
+    MODEL `${dataform.projectConfig.defaultDatabase}.banking_ml.fraud_boosted_tree_model`,
+
+    (
+      SELECT
+        transaction_id,
+        client_id,
+        account_id,
+
+        amount,
+        currency,
+        tx_type,
+        merchant_category,
+
+        transaction_timestamp,
+        transaction_hour,
+        device_id,
+
+        prior_transaction_count,
+        seconds_since_previous_transaction,
+
+        prior_currency_transaction_count,
+        prior_avg_amount_same_currency,
+        prior_stddev_amount_same_currency,
+
+        amount_vs_prior_avg_same_currency,
+        amount_zscore_same_currency,
+
+        transactions_last_1h,
+        transactions_last_24h,
+
+        amount_last_1h_same_currency,
+        amount_last_24h_same_currency,
+
+        prior_distinct_devices,
+
+        is_new_client,
+        is_new_currency_for_client,
+        is_new_device,
+        has_sufficient_amount_history
+
+      FROM ${ref("ml_features_transactions")}
+    )
+  )
+)
+
+
+SELECT
+  transaction_id,
+  client_id,
+  account_id,
+
+  amount,
+  currency,
+  tx_type,
+  merchant_category,
+
+  transaction_timestamp,
+  device_id,
+
+  fraud_probability,
+
+  fraud_probability >= 0.80
+    AS predicted_fraud,
+
+  CASE
+    WHEN fraud_probability >= 0.80
+      THEN "HIGH"
+
+    WHEN fraud_probability >= 0.50
+      THEN "MEDIUM"
+
+    ELSE "LOW"
+  END AS risk_level,
+
+  CURRENT_TIMESTAMP() AS scored_at
+
+FROM predictions

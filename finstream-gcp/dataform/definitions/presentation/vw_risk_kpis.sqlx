@@ -1,0 +1,76 @@
+﻿config {
+  type: "view",
+  schema: "banking_marts",
+  name: "vw_risk_kpis",
+  description: "Risk and fraud KPI presentation view by date and currency",
+  tags: ["gold", "presentation", "risk", "fraud"],
+
+  assertions: {
+    uniqueKey: [
+      "transaction_date",
+      "currency"
+    ],
+
+    nonNull: [
+      "transaction_date",
+      "currency",
+      "transaction_count",
+      "fraud_transaction_count",
+      "fraud_amount"
+    ],
+
+    rowConditions: [
+      "transaction_count > 0",
+      "fraud_transaction_count >= 0",
+      "fraud_transaction_count <= transaction_count",
+      "fraud_transaction_rate_pct BETWEEN 0 AND 100",
+      "fraud_amount_rate_pct BETWEEN 0 AND 100"
+    ]
+  }
+}
+
+SELECT
+  transaction_date,
+  currency,
+
+  COUNT(*) AS transaction_count,
+
+  COUNTIF(is_flagged_fraud) AS fraud_transaction_count,
+
+  SUM(amount) AS total_amount,
+
+  SUM(
+    IF(is_flagged_fraud, amount, 0)
+  ) AS fraud_amount,
+
+  SAFE_DIVIDE(
+    COUNTIF(is_flagged_fraud),
+    COUNT(*)
+  ) * 100 AS fraud_transaction_rate_pct,
+
+  SAFE_DIVIDE(
+    SUM(IF(is_flagged_fraud, amount, 0)),
+    SUM(amount)
+  ) * 100 AS fraud_amount_rate_pct,
+
+  COUNT(DISTINCT client_id) AS active_clients,
+
+  COUNT(DISTINCT IF(
+    is_flagged_fraud,
+    client_id,
+    NULL
+  )) AS clients_with_fraud,
+
+  COUNT(DISTINCT device_id) AS active_devices,
+
+  COUNT(DISTINCT IF(
+    is_flagged_fraud,
+    device_id,
+    NULL
+  )) AS devices_with_fraud
+
+FROM ${ref("fct_transactions")}
+
+GROUP BY
+  transaction_date,
+  currency

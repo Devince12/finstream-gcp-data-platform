@@ -1,0 +1,25 @@
+﻿config {
+  type: "table",
+  schema: "banking_marts",
+  name: "dim_date",
+  description: "Calendar dimension derived from transaction dates",
+  tags: ["gold", "dimension", "date"],
+
+  assertions: {
+    uniqueKey: ["date_key"],
+    nonNull: ["date_key"]
+  }
+}
+
+SELECT DISTINCT
+  transaction_date AS date_key,
+  EXTRACT(DAY FROM transaction_date) AS day,
+  EXTRACT(DAYOFWEEK FROM transaction_date) AS day_of_week,
+  FORMAT_DATE("%A", transaction_date) AS day_name,
+  EXTRACT(WEEK FROM transaction_date) AS week_number,
+  EXTRACT(MONTH FROM transaction_date) AS month_number,
+  FORMAT_DATE("%B", transaction_date) AS month_name,
+  EXTRACT(QUARTER FROM transaction_date) AS quarter,
+  EXTRACT(YEAR FROM transaction_date) AS year
+
+FROM ${ref("fct_transactions")}

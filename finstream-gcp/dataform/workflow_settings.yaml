@@ -1,0 +1,5 @@
+﻿defaultProject: fintech-data-platform-dev
+defaultDataset: banking_staging
+defaultLocation: EU
+defaultAssertionDataset: dataform_assertions
+dataformCoreVersion: "3.0.52"

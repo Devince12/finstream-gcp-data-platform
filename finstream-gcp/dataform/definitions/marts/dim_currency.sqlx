@@ -1,0 +1,24 @@
+﻿config {
+  type: "table",
+  schema: "banking_marts",
+  name: "dim_currency",
+  description: "Currency dimension for FinStream analytics",
+  tags: ["gold", "dimension", "currency"],
+
+  assertions: {
+    uniqueKey: ["currency"],
+    nonNull: ["currency"]
+  }
+}
+
+SELECT DISTINCT
+  currency,
+
+  CASE currency
+    WHEN "EUR" THEN "Euro"
+    WHEN "USD" THEN "US Dollar"
+    WHEN "GBP" THEN "Pound Sterling"
+    ELSE "Unknown"
+  END AS currency_name
+
+FROM ${ref("fct_transactions")}

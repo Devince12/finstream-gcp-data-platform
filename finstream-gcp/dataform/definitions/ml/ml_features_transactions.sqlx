@@ -1,0 +1,346 @@
+﻿config {
+  type: "table",
+  schema: "banking_ml",
+  name: "ml_features_transactions",
+  description: "Point-in-time behavioral features for FinStream fraud detection",
+  tags: ["ml", "fraud", "features", "point-in-time"],
+
+  assertions: {
+    uniqueKey: ["transaction_id"],
+
+    nonNull: [
+      "transaction_id",
+      "client_id",
+      "amount",
+      "currency",
+      "tx_type",
+      "transaction_timestamp",
+      "is_flagged_fraud"
+    ],
+
+    rowConditions: [
+      "amount > 0",
+      "prior_transaction_count >= 0",
+      "prior_currency_transaction_count >= 0",
+      "transactions_last_1h >= 0",
+      "transactions_last_24h >= 0",
+      "prior_distinct_devices >= 0"
+    ]
+  }
+}
+
+
+-- ============================================================
+-- 1. Base transaction ordering
+-- ============================================================
+
+WITH ordered_transactions AS (
+
+  SELECT
+    transaction_id,
+    client_id,
+    account_id,
+
+    amount,
+    currency,
+    tx_type,
+    merchant_category,
+
+    transaction_timestamp,
+    transaction_date,
+    transaction_hour,
+
+    device_id,
+    is_flagged_fraud,
+
+    -- Position of the transaction in the global client history.
+    ROW_NUMBER() OVER (
+      PARTITION BY client_id
+      ORDER BY transaction_timestamp, transaction_id
+    ) AS client_transaction_sequence,
+
+    -- Position of the transaction for this client + currency.
+    ROW_NUMBER() OVER (
+      PARTITION BY client_id, currency
+      ORDER BY transaction_timestamp, transaction_id
+    ) AS client_currency_sequence,
+
+    -- First occurrence of a device for the client.
+    ROW_NUMBER() OVER (
+      PARTITION BY client_id, device_id
+      ORDER BY transaction_timestamp, transaction_id
+    ) AS client_device_sequence
+
+  FROM ${ref("fct_transactions")}
+),
+
+
+-- ============================================================
+-- 2. Historical behavioral features
+-- ============================================================
+
+historical_features AS (
+
+  SELECT
+    *,
+
+    -- --------------------------------------------------------
+    -- Client history - all currencies
+    -- --------------------------------------------------------
+
+    COUNT(*) OVER (
+      PARTITION BY client_id
+      ORDER BY transaction_timestamp, transaction_id
+      ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+    ) AS prior_transaction_count,
+
+
+    LAG(transaction_timestamp) OVER (
+      PARTITION BY client_id
+      ORDER BY transaction_timestamp, transaction_id
+    ) AS previous_transaction_timestamp,
+
+
+    -- --------------------------------------------------------
+    -- Monetary history
+    --
+    -- IMPORTANT:
+    -- Money is compared only inside the SAME currency.
+    -- EUR, USD and GBP are never summed together here.
+    -- --------------------------------------------------------
+
+    COUNT(*) OVER (
+      PARTITION BY client_id, currency
+      ORDER BY transaction_timestamp, transaction_id
+      ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+    ) AS prior_currency_transaction_count,
+
+
+    AVG(amount) OVER (
+      PARTITION BY client_id, currency
+      ORDER BY transaction_timestamp, transaction_id
+      ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+    ) AS prior_avg_amount_same_currency,
+
+
+    STDDEV(amount) OVER (
+      PARTITION BY client_id, currency
+      ORDER BY transaction_timestamp, transaction_id
+      ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+    ) AS prior_stddev_amount_same_currency,
+
+
+    -- --------------------------------------------------------
+    -- Velocity features
+    --
+    -- Transaction COUNTS can span currencies because they
+    -- represent events, not financial amounts.
+    -- --------------------------------------------------------
+
+    COUNT(*) OVER (
+      PARTITION BY client_id
+      ORDER BY UNIX_SECONDS(transaction_timestamp)
+      RANGE BETWEEN 3600 PRECEDING AND 1 PRECEDING
+    ) AS transactions_last_1h,
+
+
+    COUNT(*) OVER (
+      PARTITION BY client_id
+      ORDER BY UNIX_SECONDS(transaction_timestamp)
+      RANGE BETWEEN 86400 PRECEDING AND 1 PRECEDING
+    ) AS transactions_last_24h,
+
+
+    -- --------------------------------------------------------
+    -- Monetary velocity
+    --
+    -- Amounts remain separated by currency.
+    -- --------------------------------------------------------
+
+    SUM(amount) OVER (
+      PARTITION BY client_id, currency
+      ORDER BY UNIX_SECONDS(transaction_timestamp)
+      RANGE BETWEEN 3600 PRECEDING AND 1 PRECEDING
+    ) AS amount_last_1h_same_currency,
+
+
+    SUM(amount) OVER (
+      PARTITION BY client_id, currency
+      ORDER BY UNIX_SECONDS(transaction_timestamp)
+      RANGE BETWEEN 86400 PRECEDING AND 1 PRECEDING
+    ) AS amount_last_24h_same_currency,
+
+
+    -- --------------------------------------------------------
+    -- Device history
+    --
+    -- Count the number of devices FIRST SEEN before the
+    -- current transaction.
+    -- --------------------------------------------------------
+
+    SUM(
+      CASE
+        WHEN client_device_sequence = 1 THEN 1
+        ELSE 0
+      END
+    ) OVER (
+      PARTITION BY client_id
+      ORDER BY transaction_timestamp, transaction_id
+      ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+    ) AS prior_distinct_devices
+
+  FROM ordered_transactions
+),
+
+
+-- ============================================================
+-- 3. Derived features
+-- ============================================================
+
+derived_features AS (
+
+  SELECT
+    *,
+
+    -- --------------------------------------------------------
+    -- Relative transaction amount
+    -- --------------------------------------------------------
+
+    SAFE_DIVIDE(
+      amount,
+      prior_avg_amount_same_currency
+    ) AS amount_vs_prior_avg_same_currency,
+
+
+    SAFE_DIVIDE(
+      amount - prior_avg_amount_same_currency,
+      prior_stddev_amount_same_currency
+    ) AS amount_zscore_same_currency,
+
+
+    -- --------------------------------------------------------
+    -- Transaction velocity
+    -- --------------------------------------------------------
+
+    TIMESTAMP_DIFF(
+      transaction_timestamp,
+      previous_transaction_timestamp,
+      SECOND
+    ) AS seconds_since_previous_transaction,
+
+
+    -- --------------------------------------------------------
+    -- Client status
+    -- --------------------------------------------------------
+
+    CASE
+      WHEN prior_transaction_count = 0 THEN TRUE
+      ELSE FALSE
+    END AS is_new_client,
+
+
+    CASE
+      WHEN prior_currency_transaction_count = 0 THEN TRUE
+      ELSE FALSE
+    END AS is_new_currency_for_client,
+
+
+    CASE
+      WHEN prior_currency_transaction_count >= 2 THEN TRUE
+      ELSE FALSE
+    END AS has_sufficient_amount_history,
+
+
+    -- --------------------------------------------------------
+    -- Device behavior
+    -- --------------------------------------------------------
+
+    CASE
+      WHEN client_device_sequence = 1 THEN TRUE
+      ELSE FALSE
+    END AS is_new_device
+
+  FROM historical_features
+)
+
+
+-- ============================================================
+-- 4. Final ML feature table
+-- ============================================================
+
+SELECT
+  transaction_id,
+  client_id,
+  account_id,
+
+  -- Current transaction
+  amount,
+  currency,
+  tx_type,
+  merchant_category,
+
+  transaction_timestamp,
+  transaction_date,
+  transaction_hour,
+
+  device_id,
+
+  -- ----------------------------------------------------------
+  -- Client historical behavior
+  -- ----------------------------------------------------------
+
+  prior_transaction_count,
+
+  previous_transaction_timestamp,
+  seconds_since_previous_transaction,
+
+  -- ----------------------------------------------------------
+  -- Same-currency historical behavior
+  -- ----------------------------------------------------------
+
+  prior_currency_transaction_count,
+
+  prior_avg_amount_same_currency,
+  prior_stddev_amount_same_currency,
+
+  amount_vs_prior_avg_same_currency,
+  amount_zscore_same_currency,
+
+  -- ----------------------------------------------------------
+  -- Velocity
+  -- ----------------------------------------------------------
+
+  transactions_last_1h,
+  transactions_last_24h,
+
+  COALESCE(
+    amount_last_1h_same_currency,
+    0
+  ) AS amount_last_1h_same_currency,
+
+  COALESCE(
+    amount_last_24h_same_currency,
+    0
+  ) AS amount_last_24h_same_currency,
+
+  -- ----------------------------------------------------------
+  -- Customer / device behavior
+  -- ----------------------------------------------------------
+
+  COALESCE(
+    prior_distinct_devices,
+    0
+  ) AS prior_distinct_devices,
+
+  is_new_client,
+  is_new_currency_for_client,
+  is_new_device,
+  has_sufficient_amount_history,
+
+  -- ----------------------------------------------------------
+  -- Label
+  -- ----------------------------------------------------------
+
+  is_flagged_fraud
+
+FROM derived_features

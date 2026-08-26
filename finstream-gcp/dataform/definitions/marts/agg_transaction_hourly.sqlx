@@ -1,0 +1,68 @@
+﻿config {
+  type: "table",
+  schema: "banking_marts",
+  name: "agg_transaction_hourly",
+  description: "Hourly transaction and fraud KPIs by date, hour, currency and transaction type",
+  tags: ["gold", "kpi", "hourly", "operations", "risk"],
+
+  assertions: {
+    uniqueKey: [
+      "transaction_date",
+      "transaction_hour",
+      "currency",
+      "tx_type"
+    ],
+
+    nonNull: [
+      "transaction_date",
+      "transaction_hour",
+      "currency",
+      "tx_type",
+      "transaction_count"
+    ],
+
+    rowConditions: [
+      "transaction_hour BETWEEN 0 AND 23",
+      "transaction_count > 0",
+      "total_amount > 0",
+      "fraud_transaction_count >= 0",
+      "fraud_transaction_count <= transaction_count",
+      "fraud_transaction_rate_pct BETWEEN 0 AND 100"
+    ]
+  }
+}
+
+SELECT
+  transaction_date,
+  transaction_hour,
+  currency,
+  tx_type,
+
+  COUNT(*) AS transaction_count,
+
+  SUM(amount) AS total_amount,
+
+  AVG(amount) AS average_amount,
+
+  COUNT(DISTINCT client_id) AS active_clients,
+
+  COUNT(DISTINCT account_id) AS active_accounts,
+
+  COUNTIF(is_flagged_fraud) AS fraud_transaction_count,
+
+  SUM(
+    IF(is_flagged_fraud, amount, 0)
+  ) AS fraud_amount,
+
+  SAFE_DIVIDE(
+    COUNTIF(is_flagged_fraud),
+    COUNT(*)
+  ) * 100 AS fraud_transaction_rate_pct
+
+FROM ${ref("fct_transactions")}
+
+GROUP BY
+  transaction_date,
+  transaction_hour,
+  currency,
+  tx_type

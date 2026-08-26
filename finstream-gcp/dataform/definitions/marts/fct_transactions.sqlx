@@ -1,0 +1,81 @@
+﻿config {
+  type: "incremental",
+  schema: "banking_marts",
+  name: "fct_transactions",
+  description: "Incremental fact table for FinStream banking transactions",
+  tags: ["gold", "fact", "transactions"],
+
+  uniqueKey: ["transaction_id"],
+
+  bigquery: {
+    partitionBy: "DATE(transaction_timestamp)",
+    clusterBy: ["client_id", "tx_type"]
+  },
+
+  assertions: {
+    uniqueKey: ["transaction_id"],
+
+    nonNull: [
+      "transaction_id",
+      "client_id",
+      "account_id",
+      "amount",
+      "currency",
+      "tx_type",
+      "transaction_timestamp"
+    ],
+
+    rowConditions: [
+      "amount > 0",
+      "currency IN ('EUR', 'USD', 'GBP')",
+      "tx_type IN ('CARD_PAYMENT', 'SEPA_TRANSFER', 'ATM_WITHDRAWAL', 'MOBILE_MONEY')"
+    ]
+  }
+}
+
+SELECT
+  transaction_id,
+  client_id,
+  account_id,
+  amount,
+  currency,
+  tx_type,
+  merchant_category,
+
+  timestamp AS transaction_timestamp,
+  DATE(timestamp) AS transaction_date,
+  EXTRACT(HOUR FROM timestamp) AS transaction_hour,
+
+  device_id,
+
+  COALESCE(
+    is_flagged_fraud,
+    FALSE
+  ) AS is_flagged_fraud,
+
+  CASE
+    WHEN COALESCE(is_flagged_fraud, FALSE)
+      THEN amount
+    ELSE 0
+  END AS fraud_amount,
+
+  CURRENT_TIMESTAMP() AS dataform_updated_at
+
+FROM ${ref("stg_transactions")}
+
+${when(
+  incremental(),
+  `
+  WHERE timestamp >= TIMESTAMP_SUB(
+    (
+      SELECT COALESCE(
+        MAX(transaction_timestamp),
+        TIMESTAMP("1970-01-01")
+      )
+      FROM ${self()}
+    ),
+    INTERVAL 3 HOUR
+  )
+  `,
+  ``
+)}
