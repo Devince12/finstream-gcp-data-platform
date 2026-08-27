@@ -25,8 +25,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Ruff
-        run: pip install ruff
+      - name: Install Python dependencies
+        run: pip install -r requirements-dev.txt
 
       - name: Compile Python files
         run: |
@@ -39,6 +39,9 @@ jobs:
           ruff check finstream-gcp/producer
           ruff check finstream-gcp/dataflow
           ruff check finstream-gcp/composer/dags
+
+      - name: Run unit tests
+        run: pytest tests/test_transactions_pipeline.py -v
 
 
   terraform-validation:
