@@ -1,5 +1,3 @@
-from dotenv import load_dotenv
-
 import hashlib
 import json
 import os
@@ -7,9 +5,9 @@ import random
 import time
 from datetime import datetime, timezone
 
+from dotenv import load_dotenv
 from faker import Faker
 from google.cloud import pubsub_v1
-
 
 # ============================================================
 # Initialization

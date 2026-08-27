@@ -1,7 +1,7 @@
 import os
-import pendulum
 from datetime import timedelta
 
+import pendulum
 from airflow import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.google.cloud.operators.bigquery import BigQueryCheckOperator
@@ -9,7 +9,6 @@ from airflow.providers.google.cloud.operators.dataform import (
     DataformCreateCompilationResultOperator,
     DataformCreateWorkflowInvocationOperator,
 )
-
 
 # ============================================================
 # Environment configuration
