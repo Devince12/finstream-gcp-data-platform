@@ -1,0 +1,5 @@
+pytest
+ruff
+apache-beam[gcp]
+python-dotenv
+google-cloud-pubsub

@@ -67,7 +67,7 @@ class ValidateTransaction(beam.DoFn):
             KeyError,
             TypeError,
             ValueError,
-            json.JSONDecoderError,
+            json.JSONDecodeError,
          ) as error:
 
             dlq_message = {
