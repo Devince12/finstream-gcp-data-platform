@@ -1,0 +1,57 @@
+name: FinStream CI
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+
+  python-validation:
+    name: Python Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile Python files
+        run: |
+          python -m compileall finstream-gcp/producer
+          python -m compileall finstream-gcp/dataflow
+          python -m compileall finstream-gcp/composer/dags
+
+
+  terraform-validation:
+    name: Terraform Validation
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: finstream-gcp/terraform/environments/dev
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        run: terraform validate
