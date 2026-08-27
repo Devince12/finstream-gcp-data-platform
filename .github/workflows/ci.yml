@@ -13,7 +13,7 @@ on:
 jobs:
 
   python-validation:
-    name: Python Validation
+    name: Python Quality
     runs-on: ubuntu-latest
 
     steps:
@@ -25,11 +25,20 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Ruff
+        run: pip install ruff
+
       - name: Compile Python files
         run: |
           python -m compileall finstream-gcp/producer
           python -m compileall finstream-gcp/dataflow
           python -m compileall finstream-gcp/composer/dags
+
+      - name: Ruff lint
+        run: |
+          ruff check finstream-gcp/producer
+          ruff check finstream-gcp/dataflow
+          ruff check finstream-gcp/composer/dags
 
 
   terraform-validation:
@@ -55,3 +64,27 @@ jobs:
 
       - name: Terraform validate
         run: terraform validate
+
+
+  dataform-validation:
+    name: Dataform Compilation
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: finstream-gcp/dataform
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Dataform CLI
+        run: npm install --global @dataform/cli
+
+      - name: Compile Dataform project
+        run: dataform compile .
