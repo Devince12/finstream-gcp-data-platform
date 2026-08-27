@@ -3,3 +3,4 @@ ruff
 apache-beam[gcp]
 python-dotenv
 google-cloud-pubsub
+pip-audit
