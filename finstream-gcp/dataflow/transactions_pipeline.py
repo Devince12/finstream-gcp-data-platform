@@ -7,7 +7,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from dotenv import load_dotenv
 from google.cloud import pubsub_v1
 
-
 load_dotenv()
 
 
@@ -52,7 +51,7 @@ class ValidateTransaction(beam.DoFn):
                 transaction["amount"],
                 (int, float)
             ):
-                raise ValueError(
+                raise TypeError(
                     "amount doit être numérique"
                 )
 
@@ -64,7 +63,12 @@ class ValidateTransaction(beam.DoFn):
             # Sortie principale
             yield transaction
 
-        except Exception as error:
+        except (
+            KeyError,
+            TypeError,
+            ValueError,
+            json.JSONDecoderError,
+         ) as error:
 
             dlq_message = {
                 "error": str(error),
