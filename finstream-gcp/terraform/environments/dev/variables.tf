@@ -9,3 +9,9 @@ variable "region" {
   type        = string
   default     = "europe-west1"
 }
+
+variable "enable_composer" {
+  description = "Whether to deploy the Cloud Composer environment"
+  type        = bool
+  default     = false
+}

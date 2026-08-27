@@ -1,0 +1,48 @@
+name: FinStream CD - Dataform
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "finstream-gcp/dataform/**"
+      - ".github/workflows/cd-dataform.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy-dataform:
+    name: Deploy Dataform
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/946313276556/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider
+          service_account: finstream-github-deployer@fintech-data-platform-dev.iam.gserviceaccount.com
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Verify authentication
+        run: |
+          gcloud auth list
+          gcloud config set project fintech-data-platform-dev
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Dataform CLI
+        run: npm install --global @dataform/cli
+
+      - name: Compile Dataform project
+        working-directory: finstream-gcp/dataform
+        run: dataform compile .

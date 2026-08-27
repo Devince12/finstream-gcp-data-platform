@@ -51,9 +51,17 @@ output "composer_service_account" {
 }
 
 output "composer_environment_name" {
-  value = google_composer_environment.finstream.name
+  value = var.enable_composer ? google_composer_environment.finstream[0].name : null
 }
 
 output "bigquery_ml_dataset" {
   value = google_bigquery_dataset.banking_ml.dataset_id
+}
+
+output "github_deployer_service_account" {
+  value = google_service_account.github_deployer.email
+}
+
+output "github_workload_identity_provider" {
+  value = google_iam_workload_identity_pool_provider.github.name
 }

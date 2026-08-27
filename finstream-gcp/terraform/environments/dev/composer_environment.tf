@@ -1,4 +1,5 @@
 resource "google_composer_environment" "finstream" {
+  count   = var.enable_composer ? 1 : 0
   name    = "finstream-composer-dev"
   project = var.project_id
   region  = var.region
