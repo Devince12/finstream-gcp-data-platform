@@ -1,4 +1,4 @@
-﻿config {
+config {
   type: "view",
   schema: "banking_marts",
   name: "vw_customer_kpis",

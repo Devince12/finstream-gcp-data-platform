@@ -1,4 +1,4 @@
-﻿config {
+config {
   type: "incremental",
   schema: "banking_marts",
   name: "fct_transactions",

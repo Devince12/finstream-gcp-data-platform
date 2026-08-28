@@ -1,4 +1,4 @@
-﻿config {
+config {
   type: "table",
   schema: "banking_staging",
   name: "stg_transactions",

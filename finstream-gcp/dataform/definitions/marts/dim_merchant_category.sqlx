@@ -1,4 +1,4 @@
-﻿config {
+config {
   type: "table",
   schema: "banking_marts",
   name: "dim_merchant_category",

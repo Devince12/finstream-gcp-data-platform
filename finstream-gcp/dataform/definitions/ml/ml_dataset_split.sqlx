@@ -1,4 +1,4 @@
-﻿config {
+config {
   type: "view",
   schema: "banking_ml",
   name: "ml_dataset_split",

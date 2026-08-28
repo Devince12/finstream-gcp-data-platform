@@ -1,4 +1,4 @@
-﻿config {
+config {
   type: "table",
   schema: "banking_ml",
   name: "fraud_predictions",
