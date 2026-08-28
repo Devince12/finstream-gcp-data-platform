@@ -1,4 +1,4 @@
-﻿config {
+config {
   type: "operations",
   tags: ["ml", "fraud", "model", "boosted-tree"]
 }

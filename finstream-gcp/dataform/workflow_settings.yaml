@@ -1,4 +1,4 @@
-﻿defaultProject: fintech-data-platform-dev
+defaultProject: fintech-data-platform-dev
 defaultDataset: banking_staging
 defaultLocation: EU
 defaultAssertionDataset: dataform_assertions
