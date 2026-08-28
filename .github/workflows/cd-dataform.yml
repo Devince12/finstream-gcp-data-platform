@@ -43,7 +43,7 @@ jobs:
       - name: Install Dataform CLI
         run: npm install --global @dataform/cli
 
-      - name: Compile Dataform project
+      - name: Compile Dataform project locally
         working-directory: finstream-gcp/dataform
         run: dataform compile .
 
@@ -53,7 +53,6 @@ jobs:
           set -euo pipefail
 
           ACCESS_TOKEN="$(gcloud auth print-access-token)"
-
           WORKSPACE_URL="https://dataform.googleapis.com/v1beta1/projects/fintech-data-platform-dev/locations/europe-west1/repositories/finstream-dataform/workspaces/dev"
 
           cd finstream-gcp/dataform
@@ -88,7 +87,8 @@ jobs:
               echo
           done
 
-      - name: Compile Dataform workspace in GCP
+      - name: Create Dataform compilation result
+        id: compilation
         shell: bash
         run: |
           set -euo pipefail
@@ -128,5 +128,102 @@ jobs:
             exit 1
           fi
 
-          echo "Dataform GCP compilation succeeded."
           echo "Compilation result: ${COMPILATION_RESULT}"
+          echo "compilation_result=${COMPILATION_RESULT}" >> "${GITHUB_OUTPUT}"
+
+      - name: Create Dataform workflow invocation
+        id: invocation
+        shell: bash
+        env:
+          COMPILATION_RESULT: ${{ steps.compilation.outputs.compilation_result }}
+        run: |
+          set -euo pipefail
+
+          ACCESS_TOKEN="$(gcloud auth print-access-token)"
+
+          INVOCATION_URL="https://dataform.googleapis.com/v1beta1/projects/fintech-data-platform-dev/locations/europe-west1/repositories/finstream-dataform/workflowInvocations"
+
+          PAYLOAD="$(jq -n \
+            --arg compilationResult "${COMPILATION_RESULT}" \
+            --arg serviceAccount "finstream-dataform@fintech-data-platform-dev.iam.gserviceaccount.com" \
+            '{
+              compilationResult: $compilationResult,
+              invocationConfig: {
+                serviceAccount: $serviceAccount
+              }
+            }')"
+
+          RESPONSE="$(curl \
+            --fail-with-body \
+            --silent \
+            --show-error \
+            -X POST \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "${INVOCATION_URL}" \
+            -d "${PAYLOAD}")"
+
+          echo "${RESPONSE}" | jq .
+
+          WORKFLOW_INVOCATION="$(echo "${RESPONSE}" | jq -r '.name // empty')"
+
+          if [ -z "${WORKFLOW_INVOCATION}" ]; then
+            echo "No workflow invocation was returned by Dataform."
+            exit 1
+          fi
+
+          echo "Workflow invocation: ${WORKFLOW_INVOCATION}"
+          echo "workflow_invocation=${WORKFLOW_INVOCATION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Wait for Dataform execution
+        shell: bash
+        env:
+          WORKFLOW_INVOCATION: ${{ steps.invocation.outputs.workflow_invocation }}
+        run: |
+          set -euo pipefail
+
+          ACCESS_TOKEN="$(gcloud auth print-access-token)"
+
+          INVOCATION_URL="https://dataform.googleapis.com/v1beta1/${WORKFLOW_INVOCATION}"
+
+          MAX_ATTEMPTS=60
+          SLEEP_SECONDS=10
+
+          for ATTEMPT in $(seq 1 "${MAX_ATTEMPTS}"); do
+            RESPONSE="$(curl \
+              --fail-with-body \
+              --silent \
+              --show-error \
+              -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+              "${INVOCATION_URL}")"
+
+            STATE="$(echo "${RESPONSE}" | jq -r '.state // "UNKNOWN"')"
+
+            echo "Attempt ${ATTEMPT}/${MAX_ATTEMPTS} - state: ${STATE}"
+
+            case "${STATE}" in
+              SUCCEEDED)
+                echo "Dataform execution succeeded."
+                exit 0
+                ;;
+
+              FAILED|CANCELLED)
+                echo "Dataform execution failed with state: ${STATE}"
+                echo "${RESPONSE}" | jq .
+                exit 1
+                ;;
+
+              RUNNING|PENDING)
+                sleep "${SLEEP_SECONDS}"
+                ;;
+
+              *)
+                echo "Unexpected Dataform state: ${STATE}"
+                echo "${RESPONSE}" | jq .
+                exit 1
+                ;;
+            esac
+          done
+
+          echo "Timed out waiting for Dataform execution."
+          exit 1
