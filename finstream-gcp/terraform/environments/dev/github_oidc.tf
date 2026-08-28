@@ -50,3 +50,10 @@ resource "google_project_iam_member" "github_deployer_dataform_editor" {
 
   member = "serviceAccount:${google_service_account.github_deployer.email}"
 }
+
+resource "google_service_account_iam_member" "github_deployer_can_use_dataform" {
+  service_account_id = google_service_account.dataform.name
+  role               = "roles/iam.serviceAccountUser"
+
+  member = "serviceAccount:${google_service_account.github_deployer.email}"
+}
