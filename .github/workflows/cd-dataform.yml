@@ -46,3 +46,87 @@ jobs:
       - name: Compile Dataform project
         working-directory: finstream-gcp/dataform
         run: dataform compile .
+
+      - name: Sync Dataform files to GCP workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ACCESS_TOKEN="$(gcloud auth print-access-token)"
+
+          WORKSPACE_URL="https://dataform.googleapis.com/v1beta1/projects/fintech-data-platform-dev/locations/europe-west1/repositories/finstream-dataform/workspaces/dev"
+
+          cd finstream-gcp/dataform
+
+          find . -type f \
+            ! -path "./node_modules/*" \
+            ! -path "./.git/*" \
+            ! -name ".df-credentials.json" \
+            | while read -r FILE; do
+
+              RELATIVE_PATH="${FILE#./}"
+
+              echo "Syncing ${RELATIVE_PATH}"
+
+              CONTENTS="$(base64 -w 0 "${FILE}")"
+
+              PAYLOAD="$(jq -n \
+                --arg path "${RELATIVE_PATH}" \
+                --arg contents "${CONTENTS}" \
+                '{path: $path, contents: $contents}')"
+
+              curl \
+                --fail-with-body \
+                --silent \
+                --show-error \
+                -X POST \
+                -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+                -H "Content-Type: application/json" \
+                "${WORKSPACE_URL}:writeFile" \
+                -d "${PAYLOAD}"
+
+              echo
+          done
+
+      - name: Compile Dataform workspace in GCP
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ACCESS_TOKEN="$(gcloud auth print-access-token)"
+
+          COMPILATION_URL="https://dataform.googleapis.com/v1beta1/projects/fintech-data-platform-dev/locations/europe-west1/repositories/finstream-dataform/compilationResults"
+
+          WORKSPACE="projects/fintech-data-platform-dev/locations/europe-west1/repositories/finstream-dataform/workspaces/dev"
+
+          PAYLOAD="$(jq -n \
+            --arg workspace "${WORKSPACE}" \
+            '{workspace: $workspace}')"
+
+          RESPONSE="$(curl \
+            --fail-with-body \
+            --silent \
+            --show-error \
+            -X POST \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "${COMPILATION_URL}" \
+            -d "${PAYLOAD}")"
+
+          echo "${RESPONSE}" | jq .
+
+          if echo "${RESPONSE}" | jq -e '.compilationErrors | length > 0' > /dev/null; then
+            echo "Dataform compilation failed."
+            echo "${RESPONSE}" | jq '.compilationErrors'
+            exit 1
+          fi
+
+          COMPILATION_RESULT="$(echo "${RESPONSE}" | jq -r '.name // empty')"
+
+          if [ -z "${COMPILATION_RESULT}" ]; then
+            echo "No compilation result was returned by Dataform."
+            exit 1
+          fi
+
+          echo "Dataform GCP compilation succeeded."
+          echo "Compilation result: ${COMPILATION_RESULT}"
